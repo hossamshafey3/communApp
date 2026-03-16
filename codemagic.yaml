@@ -1,0 +1,27 @@
+workflows:
+  ios-unsigned-build:
+    name: iOS Unsigned Build (For Sideloadly)
+    instance_type: mac_mini_m1
+    max_build_duration: 60
+    environment:
+      flutter: default
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Get packages
+        script: |
+          flutter packages pub get
+      - name: Build unsigned iOS app
+        script: |
+          # Build iOS app without code signing
+          flutter build ios --release --no-codesign
+          
+          # Create Payload structure to pack it as an IPA
+          mkdir -p build/ios/iphoneos/Payload
+          mv build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
+          
+          # Compress into an IPA file
+          cd build/ios/iphoneos
+          zip -r -q communapp-unsigned.ipa Payload
+    artifacts:
+      - build/ios/iphoneos/communapp-unsigned.ipa
