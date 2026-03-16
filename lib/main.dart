@@ -69,10 +69,20 @@ class _SplashRouterState extends State<_SplashRouter> with WidgetsBindingObserve
   }
 
   Future<void> _route() async {
-    await NotificationService().init();
-    await Future.delayed(const Duration(milliseconds: 1000)); // Show splash for 1 second
+    try {
+      debugPrint("Initializing NotificationService...");
+      await NotificationService().init();
+    } catch (e) {
+      debugPrint("NotificationService initialization failed: $e");
+    }
+
+    await Future.delayed(const Duration(milliseconds: 1500)); // Slightly longer delay for splash
+    
     final prefs = await SharedPreferences.getInstance();
     final user = prefs.getString('currentUser');
+    
+    debugPrint("Routing user: $user");
+    
     if (!mounted) return;
     if (user != null && user.isNotEmpty) {
       PresenceService.updatePresence(user, true); // Mark online on startup

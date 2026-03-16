@@ -12,12 +12,22 @@ class NotificationService {
   Future<void> init() async {
     const AndroidInitializationSettings androidSettings =
         AndroidInitializationSettings('@mipmap/ic_launcher');
-    
-    // Request permission on Android 13+
-    await Permission.notification.request();
 
-    const InitializationSettings initSettings =
-        InitializationSettings(android: androidSettings);
+    const DarwinInitializationSettings iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    // Request permission on Android 13+
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
+    }
+
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
 
     await _notificationsPlugin.initialize(
       settings: initSettings,
