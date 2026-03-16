@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/login_screen.dart';
 import 'screens/chat_screen.dart';
 import 'services/notification_service.dart';
-import 'services/chat_service.dart';
 import 'services/presence_service.dart';
+import 'services/supabase_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await SupabaseConfig.initialize();
   runApp(const ChatApp());
 }
 
@@ -71,12 +70,11 @@ class _SplashRouterState extends State<_SplashRouter> with WidgetsBindingObserve
 
   Future<void> _route() async {
     await NotificationService().init();
-    await Future.delayed(const Duration(milliseconds: 5000)); // Time to read the messages
+    await Future.delayed(const Duration(milliseconds: 1000)); // Show splash for 1 second
     final prefs = await SharedPreferences.getInstance();
     final user = prefs.getString('currentUser');
     if (!mounted) return;
     if (user != null && user.isNotEmpty) {
-      ChatService().startBackgroundListener(user);
       PresenceService.updatePresence(user, true); // Mark online on startup
       Navigator.pushReplacement(
           context,
@@ -115,7 +113,7 @@ class _SplashRouterState extends State<_SplashRouter> with WidgetsBindingObserve
             ),
             const SizedBox(height: 20),
             const Text(
-              'onlyUs',
+              'Hi Milaya',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 28,

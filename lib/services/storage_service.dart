@@ -1,36 +1,32 @@
 import 'dart:io';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
+import 'supabase_config.dart';
 
 class StorageService {
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  final _supabase = SupabaseConfig.client;
   final Uuid _uuid = const Uuid();
 
-  // Upload image and return download URL
+  // Upload image and return public URL
   Future<String> uploadImage(File imageFile) async {
-    final String fileName = 'images/${_uuid.v4()}.jpg';
-    final Reference ref = _storage.ref().child(fileName);
+    final String path = 'images/${_uuid.v4()}.jpg';
+    
+    await _supabase.storage.from('attachments').upload(
+          path,
+          imageFile,
+        );
 
-    final UploadTask uploadTask = ref.putFile(
-      imageFile,
-      SettableMetadata(contentType: 'image/jpeg'),
-    );
-
-    final TaskSnapshot snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
+    return _supabase.storage.from('attachments').getPublicUrl(path);
   }
 
-  // Upload audio and return download URL
+  // Upload audio and return public URL
   Future<String> uploadAudio(File audioFile) async {
-    final String fileName = 'audio/${_uuid.v4()}.m4a';
-    final Reference ref = _storage.ref().child(fileName);
+    final String path = 'audio/${_uuid.v4()}.m4a';
+    
+    await _supabase.storage.from('attachments').upload(
+          path,
+          audioFile,
+        );
 
-    final UploadTask uploadTask = ref.putFile(
-      audioFile,
-      SettableMetadata(contentType: 'audio/m4a'),
-    );
-
-    final TaskSnapshot snapshot = await uploadTask;
-    return await snapshot.ref.getDownloadURL();
+    return _supabase.storage.from('attachments').getPublicUrl(path);
   }
 }

@@ -1,23 +1,26 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'supabase_config.dart';
 
 class PresenceService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static const String _usersCollection = 'users';
+  static final _supabase = SupabaseConfig.client;
 
   // Call this when the app is resumed or opened
   static Future<void> updatePresence(String userId, bool isOnline) async {
     try {
-      await _firestore.collection(_usersCollection).doc(userId).set({
-        'isOnline': isOnline,
-        'lastSeen': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      await _supabase.from('profiles').upsert({
+        'id': userId,
+        'is_online': isOnline,
+        'last_seen': DateTime.now().toIso8601String(),
+      });
     } catch (e) {
-      // Ignore errors if strictly offline or perm issues
+      // Ignore errors
     }
   }
 
   // Stream another user's presence
-  static Stream<DocumentSnapshot<Map<String, dynamic>>> getPresenceStream(String userId) {
-    return _firestore.collection(_usersCollection).doc(userId).snapshots();
+  static Stream<List<Map<String, dynamic>>> getPresenceStream(String userId) {
+    return _supabase
+        .from('profiles')
+        .stream(primaryKey: ['id'])
+        .eq('id', userId);
   }
 }

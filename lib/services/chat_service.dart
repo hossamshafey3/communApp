@@ -1,54 +1,17 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/message_model.dart';
-import 'notification_service.dart';
+import 'supabase_config.dart';
 
 class ChatService {
-  static const String _chatCollection = 'chats';
-  static const String _chatDoc = 'main_chat';
-  static const String _messagesCollection = 'messages';
-
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  CollectionReference<Map<String, dynamic>> get _messagesRef => _firestore
-      .collection(_chatCollection)
-      .doc(_chatDoc)
-      .collection(_messagesCollection);
-
-  // Background listener for notifications
-  void startBackgroundListener(String currentUser) {
-    _messagesRef.snapshots().listen((snapshot) {
-      for (var change in snapshot.docChanges) {
-        if (change.type == DocumentChangeType.added) {
-          final msgData = change.doc.data();
-          if (msgData != null && msgData['senderId'] != currentUser) {
-            // Only notify for VERY recent messages to prevent spam on app start
-            final timestamp = msgData['timestamp'] as Timestamp?;
-            if (timestamp != null &&
-                DateTime.now().difference(timestamp.toDate()).inMinutes < 1) {
-              
-              final isText = msgData['type'] == 'text';
-              final senderName = msgData['senderId'] == 'hossam' ? 'Hossam' : 'Maria';
-              final content = isText ? msgData['content'] : 'Sent an attachment 📸🎙️';
-
-              NotificationService().showNotification(
-                id: change.doc.id.hashCode,
-                title: 'New message from $senderName',
-                body: content,
-              );
-            }
-          }
-        }
-      }
-    });
-  }
+  final _supabase = SupabaseConfig.client;
 
   // Real-time stream of messages
   Stream<List<MessageModel>> getMessagesStream() {
-    return _messagesRef
-        .orderBy('timestamp', descending: false)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => MessageModel.fromMap(doc.data(), doc.id))
+    return _supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .order('timestamp', ascending: true)
+        .map((data) => data
+            .map((map) => MessageModel.fromMap(map, map['id'].toString()))
             .toList());
   }
 
@@ -57,14 +20,12 @@ class ChatService {
     required String senderId,
     required String text,
   }) async {
-    await _messagesRef.add(MessageModel(
-      id: '',
-      senderId: senderId,
-      type: MessageType.text,
-      content: text,
-      timestamp: DateTime.now(),
-      isSeen: false,
-    ).toMap());
+    await _supabase.from('messages').insert({
+      'sender_id': senderId,
+      'type': 'text',
+      'content': text,
+      'is_seen': false,
+    });
   }
 
   // Send an image message
@@ -72,14 +33,12 @@ class ChatService {
     required String senderId,
     required String imageUrl,
   }) async {
-    await _messagesRef.add(MessageModel(
-      id: '',
-      senderId: senderId,
-      type: MessageType.image,
-      content: imageUrl,
-      timestamp: DateTime.now(),
-      isSeen: false,
-    ).toMap());
+     await _supabase.from('messages').insert({
+      'sender_id': senderId,
+      'type': 'image',
+      'content': imageUrl,
+      'is_seen': false,
+    });
   }
 
   // Send a voice message
@@ -88,24 +47,22 @@ class ChatService {
     required String audioUrl,
     required int durationSeconds,
   }) async {
-    await _messagesRef.add(MessageModel(
-      id: '',
-      senderId: senderId,
-      type: MessageType.voice,
-      content: audioUrl,
-      timestamp: DateTime.now(),
-      voiceDuration: durationSeconds,
-      isSeen: false,
-    ).toMap());
+    await _supabase.from('messages').insert({
+      'sender_id': senderId,
+      'type': 'voice',
+      'content': audioUrl,
+      'voice_duration': durationSeconds,
+      'is_seen': false,
+    });
   }
 
   // Delete a message
   Future<void> deleteMessage(String messageId) async {
-    await _messagesRef.doc(messageId).delete();
+    await _supabase.from('messages').delete().eq('id', messageId);
   }
 
   // Mark a message as seen
   Future<void> markAsSeen(String messageId) async {
-    await _messagesRef.doc(messageId).update({'isSeen': true});
+    await _supabase.from('messages').update({'is_seen': true}).eq('id', messageId);
   }
 }

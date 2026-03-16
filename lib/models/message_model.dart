@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 enum MessageType { text, image, voice }
 
@@ -24,23 +24,22 @@ class MessageModel {
   factory MessageModel.fromMap(Map<String, dynamic> map, String docId) {
     return MessageModel(
       id: docId,
-      senderId: map['senderId'] ?? '',
+      senderId: map['sender_id'] ?? '',
       type: _typeFromString(map['type'] ?? 'text'),
       content: map['content'] ?? '',
-      timestamp: (map['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      voiceDuration: map['voiceDuration'],
-      isSeen: map['isSeen'] ?? false,
+      timestamp: DateTime.tryParse(map['timestamp']?.toString() ?? '') ?? DateTime.now(),
+      voiceDuration: map['voice_duration'],
+      isSeen: map['is_seen'] ?? false,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      'senderId': senderId,
+      'sender_id': senderId,
       'type': _typeToString(type),
       'content': content,
-      'timestamp': Timestamp.fromDate(timestamp),
-      'isSeen': isSeen,
-      if (voiceDuration != null) 'voiceDuration': voiceDuration,
+      'is_seen': isSeen,
+      if (voiceDuration != null) 'voice_duration': voiceDuration,
     };
   }
 

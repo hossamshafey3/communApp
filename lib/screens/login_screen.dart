@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'chat_screen.dart';
-import '../services/chat_service.dart';
 
 // ── Hardcoded users ────────────────────────────────────────────────────────
 // User 1: username = "hossam"   password = "hossam123"
@@ -66,7 +65,6 @@ class _LoginScreenState extends State<LoginScreen>
     if (_users.containsKey(username) && _users[username] == password) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('currentUser', username);
-      ChatService().startBackgroundListener(username);
       if (mounted) {
         Navigator.pushReplacement(
           context,

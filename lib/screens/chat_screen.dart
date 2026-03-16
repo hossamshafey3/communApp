@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/message_model.dart';
 import '../services/chat_service.dart';
 import '../services/storage_service.dart';
@@ -64,7 +63,7 @@ class _ChatScreenState extends State<ChatScreen> {
           senderId: widget.currentUser, imageUrl: url);
       _scrollToBottom();
     } catch (e) {
-      _showError('Failed to send image');
+      _showError('Image upload failed: $e');
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -80,7 +79,7 @@ class _ChatScreenState extends State<ChatScreen> {
           durationSeconds: duration);
       _scrollToBottom();
     } catch (e) {
-      _showError('Failed to send voice message');
+      _showError('Voice upload failed: $e');
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -154,17 +153,17 @@ class _ChatScreenState extends State<ChatScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
           children: [
-            StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            StreamBuilder<List<Map<String, dynamic>>>(
               stream: PresenceService.getPresenceStream(_otherUser(widget.currentUser).toLowerCase()),
               builder: (context, snapshot) {
                 bool isOnline = false;
                 String statusText = 'Offline';
                 
-                if (snapshot.hasData && snapshot.data!.exists) {
-                  final data = snapshot.data!.data();
-                  isOnline = data?['isOnline'] ?? false;
-                  if (!isOnline && data?['lastSeen'] != null) {
-                    final lastSeen = (data!['lastSeen'] as Timestamp).toDate();
+                if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+                  final data = snapshot.data!.first;
+                  isOnline = data['is_online'] ?? false;
+                  if (!isOnline && data['last_seen'] != null) {
+                    final lastSeen = DateTime.tryParse(data['last_seen'].toString()) ?? DateTime.now();
                     final diff = DateTime.now().difference(lastSeen);
                     if (diff.inMinutes < 60) {
                       statusText = 'Last seen ${diff.inMinutes}m ago';
@@ -254,7 +253,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           Text(
                             statusText,
                             style: TextStyle(
-                                color: Colors.white.withOpacity(0.5), fontSize: 11),
+                                color: Colors.white.withOpacity(0.4), fontSize: 12),
                           ),
                       ],
                     ),
@@ -291,21 +290,33 @@ class _ChatScreenState extends State<ChatScreen> {
         }
         if (snapshot.hasError) {
           return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.wifi_off_rounded,
-                    color: Colors.white38, size: 48),
-                const SizedBox(height: 12),
-                Text(
-                  'Connection error\nPlease check Firebase setup',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.4),
-                    fontSize: 14,
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.wifi_off_rounded,
+                      color: Colors.redAccent, size: 48),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Connection error',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 8),
+                  Text(
+                    '${snapshot.error}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.4),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         }
