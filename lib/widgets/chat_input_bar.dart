@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class ChatInputBar extends StatefulWidget {
   final Function(String) onSendText;
@@ -51,57 +50,92 @@ class _ChatInputBarState extends State<ChatInputBar>
   }
 
   Future<void> _pickImage() async {
-    final status = await Permission.photos.request();
-    if (!status.isGranted) {
-      await Permission.storage.request();
-    }
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-        source: ImageSource.gallery, imageQuality: 75);
-    if (picked != null) {
-      widget.onSendImage(File(picked.path));
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+          source: ImageSource.gallery, imageQuality: 75);
+      if (picked != null) {
+        widget.onSendImage(File(picked.path));
+      }
+    } catch (e) {
+      _showError('Failed to pick image: $e');
     }
   }
 
   Future<void> _pickCamera() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-        source: ImageSource.camera, imageQuality: 75);
-    if (picked != null) {
-      widget.onSendImage(File(picked.path));
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(
+          source: ImageSource.camera, imageQuality: 75);
+      if (picked != null) {
+        widget.onSendImage(File(picked.path));
+      }
+    } catch (e) {
+      _showError('Camera error: $e');
     }
   }
 
   Future<void> _startRecording() async {
-    final status = await Permission.microphone.request();
-    if (!status.isGranted) return;
+    try {
+      final hasPermission = await _recorder.hasPermission();
+      if (!hasPermission) {
+        _showError('Microphone permission denied');
+        return;
+      }
 
-    final dir = await getTemporaryDirectory();
-    _recordingPath =
-        '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+      final dir = await getTemporaryDirectory();
+      _recordingPath =
+          '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
-    await _recorder.start(
-      const RecordConfig(encoder: AudioEncoder.aacLc),
-      path: _recordingPath!,
-    );
-    _recordStart = DateTime.now();
-    setState(() => _isRecording = true);
-    _pulseCtrl.repeat(reverse: true);
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 128000,
+          sampleRate: 44100,
+        ),
+        path: _recordingPath!,
+      );
+      
+      _recordStart = DateTime.now();
+      setState(() => _isRecording = true);
+      _pulseCtrl.repeat(reverse: true);
+    } catch (e) {
+      debugPrint("Start recording error: $e");
+      _showError('Could not start recording: $e');
+    }
   }
 
   Future<void> _stopRecording() async {
-    _pulseCtrl.stop();
-    _pulseCtrl.value = 1.0;
-    final path = await _recorder.stop();
-    setState(() => _isRecording = false);
+    try {
+      _pulseCtrl.stop();
+      _pulseCtrl.value = 1.0;
+      final path = await _recorder.stop();
+      setState(() => _isRecording = false);
 
-    if (path != null && _recordStart != null) {
-      final duration =
-          DateTime.now().difference(_recordStart!).inSeconds;
-      if (duration >= 1) {
-        widget.onSendVoice(File(path), duration);
+      if (path != null && _recordStart != null) {
+        final duration =
+            DateTime.now().difference(_recordStart!).inSeconds;
+        if (duration >= 1) {
+          widget.onSendVoice(File(path), duration);
+        } else {
+          _showError('Message too short');
+        }
       }
+    } catch (e) {
+      debugPrint("Stop recording error: $e");
+      _showError('Failed to save recording: $e');
     }
+  }
+
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: Colors.redAccent,
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 2),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
   }
 
   void _sendText() {
